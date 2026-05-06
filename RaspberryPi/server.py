@@ -20,13 +20,13 @@ print(f"Listening on port {PORT}...")
 while True:
     conn, addr = server.accept()
     print(f"Connected by {addr}")
-    data = conn.recv(4096).decode("utf-8").strip()
-    if data:
-        print(f"Received: {data}")
-        subprocess.run(
-            f'echo "{data}" | ./piper --model en_US-ryan-low.onnx --output_file test.wav',
-            shell=True, cwd="/home/chudberrypi/piper/piper"
-        )
-        subprocess.run(["pw-play", "/home/chudberrypi/piper/piper/test.wav"])
-conn.close()
-
+    while True:
+        data = conn.recv(4096).decode("utf-8").strip()
+        if data:
+            print(f"Received: {data}")
+            subprocess.run(
+                f'echo "{data}" | ./piper --model en_US-ryan-low.onnx --output_file test.wav',
+                shell=True, cwd="/home/chudberrypi/piper/piper"
+            )
+            subprocess.run(["pw-play", "/home/chudberrypi/piper/piper/test.wav"])
+    conn.close()
