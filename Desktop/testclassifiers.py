@@ -5,6 +5,7 @@ from mjpeg_streamer import MjpegServer, Stream
 import mediapipe as mp
 import numpy as np
 import pickle
+import sys
 
 
 model_dict = pickle.load(open('./model.p', 'rb'))
@@ -157,10 +158,11 @@ while True:
             with open("predicted_results.txt", "w") as f:
                 for item in predicted_results:
                     f.write(item)
-    predicted_results.clear()
+            predicted_results.clear()
     
 
 
 
 cap.release()
 cv.destroyAllWindows()
+sys.exit()
