@@ -2,7 +2,6 @@ import socket
 import subprocess
 import speech_recognition as sr
 import threading
-import keyboard
 
 HOST = "0.0.0.0"
 PORT = 5000
@@ -19,22 +18,20 @@ server.bind((HOST, PORT))
 server.listen(1)
 print(f"Listening on port {PORT}...")
 
-conn = None  
+conn = None
 
 def listen_and_send():
     global conn
     if conn is None:
         print("No client connected, can't send")
         return
-    
     recognizer = sr.Recognizer()
     mic = sr.Microphone()
-    
-    print("Recording... hold R to keep recording, release to send")
+    print("Recording...")
     with mic as source:
         recognizer.adjust_for_ambient_noise(source, duration=0.5)
-        audio = recognizer.listen(source, phrase_time_limit=10)
-    
+        recognizer.pause_threshold = 2.0
+        audio = recognizer.listen(source, phrase_time_limit=15)
     try:
         text = recognizer.recognize_google(audio)
         print(f"Recognized: {text}")
@@ -44,23 +41,32 @@ def listen_and_send():
     except sr.RequestError as e:
         print(f"Speech recognition error: {e}")
 
-def on_release(key):
-    if key.name == 'r':
-        threading.Thread(target=listen_and_send).start()
+def key_listener():
+    print("Press R then Enter to record speech and send to desktop")
+    while True:
+        ch = input()
+        if ch.lower() == 'r':
+            threading.Thread(target=listen_and_send).start()
 
-keyboard.on_release_key('r', on_release)
-print("Hold R to record speech and send to desktop")
+threading.Thread(target=key_listener, daemon=True).start()
 
 while True:
     conn, addr = server.accept()
     print(f"Connected by {addr}")
+    conn.settimeout(1.0)
     while True:
-        data = conn.recv(4096).decode("utf-8").strip()
-        if data:
-            print(f"Received: {data}")
-            subprocess.run(
-                f'echo "{data}" | ./piper --model en_US-ryan-low.onnx --output_file test.wav',
-                shell=True, cwd="/home/chudberrypi/piper/piper"
-            )
-            subprocess.run(["pw-play", "/home/chudberrypi/piper/piper/test.wav"])
+        try:
+            data = conn.recv(4096).decode("utf-8").strip()
+            if not data:
+                print("Client disconnected")
+                break
+            if data:
+                print(f"Received: {data}")
+                subprocess.run(
+                    f'echo "{data}" | ./piper --model en_US-ryan-low.onnx --output_file test.wav',
+                    shell=True, cwd="/home/chudberrypi/piper/piper"
+                )
+                subprocess.run(["pw-play", "/home/chudberrypi/piper/piper/test.wav"])
+        except socket.timeout:
+            pass
     conn.close()
